@@ -1,0 +1,23 @@
+name: botc_lights_app
+description: BotC Lights App
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.1.0-163.1.beta <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  app_settings: any
+  bits: any
+  flutter_reactive_ble: any
+  flutter_riverpod: any
+  permission_handler: any
+
+dev_dependencies:
+  flutter_lints: any
+
+flutter:
+  uses-material-design: true

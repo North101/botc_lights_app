@@ -1,0 +1,67 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '/providers.dart';
+import 'device_page.dart';
+import 'setup_page.dart';
+
+final deviceListProvider =
+    StateNotifierProvider.autoDispose<DeviceListStateNotifier, Iterable<DiscoveredDevice>>((ref) {
+  return DeviceListStateNotifier();
+});
+
+final deviceListLoadingProvider = Provider.autoDispose((ref) {
+  final deviceList = ref.watch(deviceListProvider);
+  return deviceList.isEmpty;
+});
+
+class DeviceListPage extends ConsumerWidget {
+  const DeviceListPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const SetupPage(
+        child: DeviceListView(),
+      );
+}
+
+class DeviceListView extends ConsumerWidget {
+  const DeviceListView({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final deviceList = ref.watch(deviceListProvider);
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: const Text('Devices'),
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(deviceListProvider),
+        child: ListView.separated(
+          padding: const EdgeInsets.all(8),
+          separatorBuilder: (context, index) => const Divider(),
+          itemCount: deviceList.length,
+          itemBuilder: (context, index) {
+            final device = deviceList.elementAt(index);
+            return Card(
+              child: ListTile(
+                title: Center(child: Text(device.name.isEmpty ? device.id : device.name)),
+                onTap: () async {
+                  final deviceList = ref.read(deviceListProvider.notifier);
+                  await deviceList.cancel();
+
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                    return DevicePage.withOverrides(device: device);
+                  }));
+                  deviceList.listen();
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
