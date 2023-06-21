@@ -66,7 +66,7 @@ final travellerCountProvider = Provider.autoDispose((ref) {
   playerStateProvider,
 ]);
 
-class DevicePage extends ConsumerWidget {
+class DevicePage extends StatelessWidget {
   const DevicePage({super.key});
 
   static Widget withOverrides({
@@ -80,9 +80,9 @@ class DevicePage extends ConsumerWidget {
       );
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => const SetupPage(
-        child: ConnectionWidget(),
-      );
+  Widget build(BuildContext context) {
+    return const SetupPage(child: ConnectionWidget());
+  }
 }
 
 class ConnectionWidget extends ConsumerWidget {
