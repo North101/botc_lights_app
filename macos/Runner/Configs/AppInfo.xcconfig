@@ -8,7 +8,7 @@
 PRODUCT_NAME = BotC Lights;
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = net.north101.flutter.botc_lights;
+PRODUCT_BUNDLE_IDENTIFIER = uk.co.north101.flutter.botc_lights;
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2023 com.example. All rights reserved.
