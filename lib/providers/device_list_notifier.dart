@@ -15,7 +15,7 @@ class DeviceListStateNotifier extends StateNotifier<List<DiscoveredDevice>> {
 
   factory DeviceListStateNotifier() {
     final notifier = DeviceListStateNotifier._();
-    notifier.listen();
+    notifier.scan();
     return notifier;
   }
 
@@ -25,12 +25,13 @@ class DeviceListStateNotifier extends StateNotifier<List<DiscoveredDevice>> {
     super.dispose();
   }
 
-  void listen() {
+  void scan() {
     scanner = bluetoothManager.scanForDevices(
       withServices: [
         uartServiceId,
       ],
       scanMode: ScanMode.lowLatency,
+      requireLocationServicesEnabled: false,
     ).listen((device) {
       final newState = [...state];
       final i = newState.indexWhere((e) => e.id == device.id);

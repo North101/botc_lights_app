@@ -64,7 +64,7 @@ class DeviceListViewWidget extends ConsumerWidget {
               await Navigator.of(context).push(MaterialPageRoute(builder: (context) {
                 return DevicePage.withOverrides(device: device);
               }));
-              deviceList.listen();
+              deviceList.scan();
             },
           ),
         );
