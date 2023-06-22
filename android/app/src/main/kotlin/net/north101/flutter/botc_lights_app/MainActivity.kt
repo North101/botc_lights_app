@@ -1,4 +1,4 @@
-package uk.co.north101.flutter.botc_lights_app
+package uk.co.north101.flutter.botc_lights
 
 import io.flutter.embedding.android.FlutterActivity
 
