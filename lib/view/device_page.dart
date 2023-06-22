@@ -90,6 +90,14 @@ class ConnectionWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(deviceConnectionProvider, (previous, next) {
+      next.whenData((value) {
+        if (value.connectionState == DeviceConnectionState.disconnected) {
+          ref.invalidate(deviceConnectionProvider);
+        }
+      });
+    });
+
     final deviceConnection = ref.watch(deviceConnectionProvider);
     return deviceConnection.when(
       loading: () => const DefaultLoadingScaffold(),
