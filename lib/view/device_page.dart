@@ -223,29 +223,6 @@ class TownsquareWidget extends ConsumerWidget {
 class TownsquareInfoWidget extends ConsumerWidget {
   const TownsquareInfoWidget({super.key});
 
-  int townsfolk(totalPlayerCount) => switch (totalPlayerCount) {
-        5 || 6 => 3,
-        7 || 8 || 9 => 5,
-        10 || 11 || 12 => 7,
-        13 || 14 || 15 => 9,
-        _ => 0,
-      };
-
-  int outsiders(totalPlayerCount) => switch (totalPlayerCount) {
-        6 || 8 || 11 || 14 => 1,
-        9 || 12 || 15 => 2,
-        _ => 0,
-      };
-
-  int minions(totalPlayerCount) => switch (totalPlayerCount) {
-        5 || 6 || 7 || 8 || 9 => 1,
-        10 || 11 || 12 => 2,
-        13 || 14 || 15 => 0,
-        _ => 0,
-      };
-
-  int demons(totalPlayerCount) => 1;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final aliveCount = ref.watch(alivePlayerCountProvider);
@@ -254,10 +231,44 @@ class TownsquareInfoWidget extends ConsumerWidget {
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text('$aliveCount / ${playerCount + travellerCount}'),
-        Text(
-            '${townsfolk(playerCount)} / ${outsiders(playerCount)} / ${minions(playerCount)} / ${demons(playerCount)}'),
+        if (playerCount >= 5 && playerCount <= 20) PlayerInfoWidget(playerCount),
       ]),
     );
+  }
+}
+
+class PlayerInfoWidget extends StatelessWidget {
+  const PlayerInfoWidget(this.playerCount, {super.key});
+
+  final int playerCount;
+
+  int get townsfolk => switch (playerCount) {
+        5 || 6 => 3,
+        7 || 8 || 9 => 5,
+        10 || 11 || 12 => 7,
+        13 || 14 || 15 => 9,
+        _ => 0,
+      };
+
+  int get outsiders => switch (playerCount) {
+        5 || 7 || 10 || 13 => 0,
+        6 || 8 || 11 || 14 => 1,
+        9 || 12 || 15 => 2,
+        _ => 0,
+      };
+
+  int get minions => switch (playerCount) {
+        5 || 6 || 7 || 8 || 9 => 1,
+        10 || 11 || 12 => 2,
+        13 || 14 || 15 => 0,
+        _ => 0,
+      };
+
+  int get demons => 1;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text('$townsfolk / $outsiders / $minions / $demons');
   }
 }
 
@@ -308,7 +319,7 @@ class PlayerWidget extends ConsumerWidget {
                 final playerState = ref.read(playerStateProvider);
                 playerState.removePlayerAt(index);
               },
-              icon: const Icon(Icons.delete),
+              icon: const Icon(Icons.delete, color: Colors.black),
             )
         },
       ),
