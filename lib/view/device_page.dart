@@ -254,12 +254,12 @@ class TownsquareInfoWidget extends ConsumerWidget {
 }
 
 class PlayerWidget extends ConsumerWidget {
-  static const colorBorder = Color.fromRGBO(000, 000, 000, 1);
-  static const colorPlayerAlive = Color.fromRGBO(255, 255, 255, 1);
-  static const colorTravellerAlive = Color.fromRGBO(255, 239, 059, 1);
-  static const colorDeadVote = Color.fromRGBO(224, 064, 251, 1);
-  static const colorDeadNoVote = Color.fromRGBO(255, 082, 082, 1);
-  static const colorHidden = Color.fromRGBO(000, 000, 000, 1);
+  static const colorBorder = Color.fromARGB(255, 255, 255, 255);
+  static const colorPlayerAlive = Color.fromARGB(255, 244, 241, 234);
+  static const colorTravellerAlive = Color.fromARGB(255, 205, 170, 056);
+  static const colorDeadVote = Color.fromARGB(255, 063, 025, 066);
+  static const colorDeadNoVote = Color.fromARGB(255, 114, 026, 022);
+  static const colorHidden = Color.fromARGB(255, 000, 000, 000);
 
   const PlayerWidget({
     required this.index,
