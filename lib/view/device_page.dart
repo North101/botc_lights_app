@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/constants.dart';
 import '/player_state.dart';
 import '/providers.dart';
-import '/view/default_scaffold.dart';
+import 'default_scaffold.dart';
 import 'setup_page.dart';
 
 const playerSize = 30.0;
@@ -20,10 +20,16 @@ final deviceConnectionProvider = StreamProvider.autoDispose((ref) {
   return bluetooth.connectToAdvertisingDevice(
     id: device.id,
     prescanDuration: const Duration(seconds: 2),
-    withServices: [
-      uartServiceId,
-      uartRxServiceId,
-    ],
+    withServices: [service],
+    servicesWithCharacteristicsToDiscover: {
+      service: [
+        stateCharacteristic,
+        playerLivingCharacteristic,
+        playerTypeCharacteristic,
+        playerTeamCharacteristic,
+        playerNominatedCharacteristic,
+      ]
+    },
   );
 }, dependencies: [
   deviceProvider,
@@ -36,35 +42,39 @@ enum ActionBarState {
 
 final actionBarStateProvider = StateProvider.autoDispose((ref) => ActionBarState.none);
 
-final playerStateProvider = ChangeNotifierProvider.autoDispose<PlayerStateNotifier>((ref) {
+final gameStateProvider = ChangeNotifierProvider<GameStateNotifier>((ref) {
   final bluetooth = ref.watch(bluetoothProvider);
   final device = ref.watch(deviceProvider);
-  return PlayerStateNotifier(bluetooth, device);
+  return GameStateNotifier(bluetooth, device);
 }, dependencies: [
   bluetoothProvider,
   deviceProvider,
 ]);
 
 final alivePlayerCountProvider = Provider.autoDispose((ref) {
-  final playerState = ref.watch(playerStateProvider).players;
-  return playerState.where((e) => e.alive == AliveState.alive).length;
+  final gameState = ref.watch(gameStateProvider).players;
+  return gameState.where((e) => e.living == LivingState.alive).length;
 }, dependencies: [
-  playerStateProvider,
+  gameStateProvider,
 ]);
 
 final playerCountProvider = Provider.autoDispose((ref) {
-  final playerState = ref.watch(playerStateProvider).players;
-  return playerState.where((e) => e.alive != AliveState.hidden && e.type == TypeState.player).length;
+  final gameState = ref.watch(gameStateProvider).players;
+  return gameState.where((e) => e.living != LivingState.hidden && e.type == TypeState.player).length;
 }, dependencies: [
-  playerStateProvider,
+  gameStateProvider,
 ]);
 
 final travellerCountProvider = Provider.autoDispose((ref) {
-  final playerState = ref.watch(playerStateProvider).players;
-  return playerState.where((e) => e.alive != AliveState.hidden && e.type == TypeState.traveller).length;
+  final gameState = ref.watch(gameStateProvider).players;
+  return gameState.where((e) => e.living != LivingState.hidden && e.type == TypeState.traveller).length;
 }, dependencies: [
-  playerStateProvider,
+  gameStateProvider,
 ]);
+
+final finalAngleProvider = StateProvider((ref) => 0.0);
+final upsetAngleProvider = StateProvider((ref) => 0.0);
+final flipProvider = StateProvider((ref) => false);
 
 class DevicePage extends StatelessWidget {
   const DevicePage({super.key});
@@ -92,7 +102,12 @@ class ConnectionWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(deviceConnectionProvider, (previous, next) {
       next.whenData((value) {
-        if (value.connectionState == DeviceConnectionState.disconnected) {
+        if (value.connectionState == DeviceConnectionState.connected) {
+          final notifier = ref.read(gameStateProvider);
+          notifier.writeStateData();
+          notifier.writePlayerCharacteristics();
+          notifier.writePlayerNominatedData();
+        } else if (value.connectionState == DeviceConnectionState.disconnected) {
           ref.invalidate(deviceConnectionProvider);
         }
       });
@@ -122,12 +137,27 @@ class ConnectedWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final device = ref.watch(deviceProvider);
     final actionBarState = ref.watch(actionBarStateProvider);
-    final playerState = ref.watch(playerStateProvider);
+    final gameState = ref.watch(gameStateProvider);
+    final flip = ref.watch(flipProvider);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(device.name),
         actions: [
+          if (gameState.state == GameState.reveal)
+            IconButton(
+              onPressed: () => gameState.setGameState(GameState.game),
+              icon: const Icon(Icons.visibility_off),
+            )
+          else if (gameState.state == GameState.game)
+            IconButton(
+              onPressed: () => gameState.setGameState(GameState.reveal),
+              icon: const Icon(Icons.visibility),
+            ),
+          IconButton(
+            onPressed: () => ref.read(flipProvider.notifier).state = !flip,
+            icon: flip ? const Icon(Icons.rotate_left) : const Icon(Icons.rotate_right),
+          ),
           switch (actionBarState) {
             ActionBarState.none => IconButton(
                 onPressed: () {
@@ -148,10 +178,10 @@ class ConnectedWidget extends ConsumerWidget {
       ),
       body: const Padding(
         padding: EdgeInsets.all(16),
-        child: Center(child: TownsquareWidget()),
+        child: Center(child: TownsquareContainer()),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: !playerState.hasMaxPlayers ? playerState.addPlayer : null,
+        onPressed: !gameState.hasMaxPlayers ? gameState.addPlayer : null,
         child: const Icon(Icons.add),
       ),
     );
@@ -180,43 +210,84 @@ class DisconnectedWidget extends ConsumerWidget {
   }
 }
 
-class TownsquareWidget extends ConsumerWidget {
-  const TownsquareWidget({super.key});
+class TownsquareContainer extends ConsumerWidget {
+  const TownsquareContainer({super.key});
 
-  double left(double radius, int index, int length) {
-    return radius + (radius * sin(pi * 2 * (index / length * 360) / 360));
+  onPanStart(WidgetRef ref, double size, DragStartDetails details) {
+    final touchPositionFromCenter = details.localPosition - Offset(size, size);
+    final finalAngle = ref.read(finalAngleProvider);
+    ref.read(upsetAngleProvider.notifier).state = finalAngle - touchPositionFromCenter.direction;
   }
 
-  double top(double radius, int index, int length) {
-    return radius + (radius * cos(pi * 2 * (180 + (index / length * 360)) / 360));
+  onPanUpdate(WidgetRef ref, double size, DragUpdateDetails details) {
+    final touchPositionFromCenter = details.localPosition - Offset(size, size);
+    final upsetAngle = ref.read(upsetAngleProvider);
+    ref.read(finalAngleProvider.notifier).state = touchPositionFromCenter.direction + upsetAngle;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerState = ref.watch(playerStateProvider);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = min(constraints.maxWidth, constraints.maxHeight);
-        final radius = (size / 2) - playerSize;
-        return SizedBox(
-          width: size,
-          height: size,
-          child: Stack(children: [
-            for (final (index, player) in playerState.players.indexed)
-              Positioned(
-                left: left(radius, index, playerState.players.length),
-                top: top(radius, index, playerState.players.length),
-                child: PlayerWidget(
-                  index: index,
-                  player: player,
-                  nominated: playerState.nominatedPlayer == index,
-                ),
+    final flip = ref.watch(flipProvider);
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        Transform.flip(
+          flipX: flip,
+          child: LayoutBuilder(builder: (context, constraints) {
+            final size = min(constraints.maxWidth, constraints.maxHeight);
+            return SizedBox(
+              width: size,
+              height: size,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onPanStart: (details) => onPanStart(ref, size / 2, details),
+                onPanUpdate: (details) => onPanUpdate(ref, size / 2, details),
+                child: const RotatedTownsquare(),
               ),
-            const TownsquareInfoWidget(),
-          ]),
-        );
-      },
+            );
+          }),
+        ),
+        const TownsquareInfoWidget(),
+      ],
     );
+  }
+}
+
+class RotatedTownsquare extends ConsumerWidget {
+  const RotatedTownsquare({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final angle = ref.watch(finalAngleProvider);
+    return Transform.rotate(
+      angle: angle,
+      child: const TownsquareWidget(),
+    );
+  }
+}
+
+class TownsquareWidget extends ConsumerWidget {
+  const TownsquareWidget({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gameState = ref.watch(gameStateProvider);
+    final distanceAngle = (360 / gameState.players.length);
+    return Stack(children: [
+      for (final (index, player) in gameState.players.indexed)
+        Align(
+          alignment: Alignment(
+            cos(((distanceAngle * index)) * pi / 180),
+            sin(((distanceAngle * index)) * pi / 180),
+          ),
+          child: PlayerWidget(
+            index: index,
+            player: player,
+            nominated: gameState.nominatedPlayer == index,
+            state: gameState.state,
+          ),
+        ),
+    ]);
   }
 }
 
@@ -274,22 +345,27 @@ class PlayerInfoWidget extends StatelessWidget {
 
 class PlayerWidget extends ConsumerWidget {
   static const colorBorder = Color.fromARGB(255, 255, 255, 255);
+  static const colorHidden = Color.fromARGB(255, 000, 000, 000);
+
   static const colorPlayerAlive = Color.fromARGB(255, 244, 241, 234);
   static const colorTravellerAlive = Color.fromARGB(255, 205, 170, 056);
-  static const colorDeadVote = Color.fromARGB(255, 063, 025, 066);
-  static const colorDeadNoVote = Color.fromARGB(255, 114, 026, 022);
-  static const colorHidden = Color.fromARGB(255, 000, 000, 000);
+  static const colorDead = Color.fromARGB(255, 063, 025, 066);
+
+  static const colorGood = Color.fromARGB(255, 082, 182, 255);
+  static const colorEvil = Color.fromARGB(255, 255, 54, 54);
 
   const PlayerWidget({
     required this.index,
     required this.player,
     required this.nominated,
+    required this.state,
     super.key,
   });
 
   final int index;
   final Player player;
   final bool nominated;
+  final GameState state;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -298,26 +374,38 @@ class PlayerWidget extends ConsumerWidget {
       backgroundColor: colorBorder,
       radius: playerSize,
       child: CircleAvatar(
-        backgroundColor: switch (player.alive) {
-          AliveState.hidden => colorHidden,
-          AliveState.deadNoVote => colorDeadNoVote,
-          AliveState.deadVote => colorDeadVote,
-          AliveState.alive => switch (player.type) {
-              TypeState.player => colorPlayerAlive,
-              TypeState.traveller => colorTravellerAlive,
+        backgroundColor: switch (state) {
+          GameState.game => switch (player.living) {
+              LivingState.hidden => colorHidden,
+              LivingState.dead => colorDead,
+              LivingState.alive => switch (player.type) {
+                  TypeState.player => colorPlayerAlive,
+                  TypeState.traveller => colorTravellerAlive,
+                },
             },
+          GameState.reveal => switch (player.team) {
+              TeamState.hidden => colorHidden,
+              TeamState.good => colorGood,
+              TeamState.evil => colorEvil,
+            }
         },
         radius: playerSize - 2,
         child: switch (actionBarState) {
-          ActionBarState.none => PlayerMenuWidget(
-              index: index,
-              value: player,
-              nominated: nominated,
-            ),
+          ActionBarState.none => switch (state) {
+              GameState.game => GamePlayerMenuWidget(
+                  index: index,
+                  value: player,
+                  nominated: nominated,
+                ),
+              GameState.reveal => RevealPlayerMenuWidget(
+                  index: index,
+                  value: player,
+                ),
+            },
           ActionBarState.delete => IconButton(
               onPressed: () {
-                final playerState = ref.read(playerStateProvider);
-                playerState.removePlayerAt(index);
+                final gameState = ref.read(gameStateProvider);
+                gameState.removePlayerAt(index);
               },
               icon: const Icon(Icons.delete, color: Colors.black),
             )
@@ -327,8 +415,8 @@ class PlayerWidget extends ConsumerWidget {
   }
 }
 
-class PlayerMenuWidget extends ConsumerWidget {
-  const PlayerMenuWidget({
+class GamePlayerMenuWidget extends ConsumerWidget {
+  const GamePlayerMenuWidget({
     required this.index,
     required this.value,
     required this.nominated,
@@ -339,96 +427,56 @@ class PlayerMenuWidget extends ConsumerWidget {
   final Player value;
   final bool nominated;
 
-  PlayerStateNotifier playerState(WidgetRef ref) => ref.read(playerStateProvider);
+  GameStateNotifier gameState(WidgetRef ref) => ref.read(gameStateProvider);
 
-  bool get enabled => value.alive != AliveState.hidden;
+  bool get enabled => value.living != LivingState.hidden;
 
-  void hide(WidgetRef ref) => playerState(ref).updatePlayer(index, Player(AliveState.hidden, value.type));
+  void update(WidgetRef ref, Player player) => gameState(ref).updatePlayer(index, player);
 
-  void deadNoVote(WidgetRef ref) => playerState(ref).updatePlayer(index, Player(AliveState.deadNoVote, value.type));
+  void setLiving(WidgetRef ref, LivingState living) => update(ref, Player(living, value.type, value.team));
 
-  void deadVote(WidgetRef ref) => playerState(ref).updatePlayer(index, Player(AliveState.deadVote, value.type));
+  void setType(WidgetRef ref, TypeState type) => update(ref, Player(value.living, type, value.team));
 
-  void alive(WidgetRef ref) => playerState(ref).updatePlayer(index, Player(AliveState.alive, value.type));
+  void setNominated(WidgetRef ref) => gameState(ref).nominatePlayer(nominated ? null : index);
 
-  void player(WidgetRef ref) => playerState(ref).updatePlayer(index, Player(value.alive, TypeState.player));
-
-  void traveller(WidgetRef ref) => playerState(ref).updatePlayer(index, Player(value.alive, TypeState.traveller));
-
-  void nominate(WidgetRef ref) => playerState(ref).nominatePlayer(nominated ? null : index);
-
-  void remove(WidgetRef ref) => playerState(ref).removePlayerAt(index);
+  void remove(WidgetRef ref) => gameState(ref).removePlayerAt(index);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PopupMenuButton<PopupMenuEntry>(
       itemBuilder: (context) => [
-        PopupMenuItem(
-          onTap: () => alive(ref),
-          child: ListTile(
-            title: const Text('Alive'),
-            leading: value.alive == AliveState.alive
-                ? const Icon(Icons.radio_button_checked)
-                : const Icon(Icons.radio_button_off),
+        for (final living in LivingState.values)
+          PopupMenuItem(
+            onTap: () => setLiving(ref, living),
+            child: ListTile(
+              title: Text(living.title),
+              leading: switch (value.living == living) {
+                true => const Icon(Icons.radio_button_checked),
+                false => const Icon(Icons.radio_button_off),
+              },
+            ),
           ),
-        ),
-        PopupMenuItem(
-          onTap: () => deadVote(ref),
-          child: ListTile(
-            title: const Text('Dead (Vote)'),
-            leading: value.alive == AliveState.deadVote
-                ? const Icon(Icons.radio_button_checked)
-                : const Icon(Icons.radio_button_off),
+        const PopupMenuDivider(),
+        for (final type in TypeState.values)
+          PopupMenuItem(
+            enabled: enabled,
+            onTap: () => setType(ref, type),
+            child: ListTile(
+              enabled: enabled,
+              title: Text(type.title),
+              leading: switch (value.type == type) {
+                true => const Icon(Icons.radio_button_checked),
+                false => const Icon(Icons.radio_button_off),
+              },
+            ),
           ),
-        ),
-        PopupMenuItem(
-          onTap: () => deadNoVote(ref),
-          child: ListTile(
-            title: const Text('Dead (No Vote)'),
-            leading: value.alive == AliveState.deadNoVote
-                ? const Icon(Icons.radio_button_checked)
-                : const Icon(Icons.radio_button_off),
-          ),
-        ),
-        PopupMenuItem(
-          onTap: () => hide(ref),
-          child: ListTile(
-            title: const Text('Hide'),
-            leading: value.alive == AliveState.hidden
-                ? const Icon(Icons.radio_button_checked)
-                : const Icon(Icons.radio_button_off),
-          ),
-        ),
         const PopupMenuDivider(),
         PopupMenuItem(
           enabled: enabled,
-          onTap: () => player(ref),
+          onTap: () => setNominated(ref),
           child: ListTile(
             enabled: enabled,
-            title: const Text('Player'),
-            leading: value.type == TypeState.player
-                ? const Icon(Icons.radio_button_checked)
-                : const Icon(Icons.radio_button_off),
-          ),
-        ),
-        PopupMenuItem(
-          enabled: enabled,
-          onTap: () => traveller(ref),
-          child: ListTile(
-            enabled: enabled,
-            title: const Text('Traveller'),
-            leading: value.type == TypeState.traveller
-                ? const Icon(Icons.radio_button_checked)
-                : const Icon(Icons.radio_button_off),
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          enabled: enabled,
-          onTap: () => nominate(ref),
-          child: ListTile(
-            enabled: enabled,
-            title: const Text('Nominate'),
+            title: const Text('Nominated'),
             leading: nominated ? const Icon(Icons.check) : const Icon(null),
           ),
         ),
@@ -442,12 +490,53 @@ class PlayerMenuWidget extends ConsumerWidget {
         ),
       ],
       icon: switch (nominated) {
-        true => switch (value.alive) {
-            AliveState.alive => const Icon(Icons.error, color: Colors.black),
+        true => switch (value.living) {
+            LivingState.alive => const Icon(Icons.error, color: Colors.black),
             _ => const Icon(Icons.error, color: Colors.white),
           },
         false => const SizedBox(),
       },
+    );
+  }
+}
+
+class RevealPlayerMenuWidget extends ConsumerWidget {
+  const RevealPlayerMenuWidget({
+    required this.index,
+    required this.value,
+    super.key,
+  });
+
+  final int index;
+  final Player value;
+
+  GameStateNotifier gameState(WidgetRef ref) => ref.read(gameStateProvider);
+
+  bool get enabled => value.living != LivingState.hidden;
+
+  void update(WidgetRef ref, Player player) => gameState(ref).updatePlayer(index, player);
+
+  void setTeam(WidgetRef ref, TeamState team) => update(ref, Player(value.living, value.type, team));
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<PopupMenuEntry>(
+      itemBuilder: (context) => [
+        for (final team in TeamState.values)
+          PopupMenuItem(
+            enabled: enabled,
+            onTap: () => setTeam(ref, team),
+            child: ListTile(
+              enabled: enabled,
+              title: Text(team.title),
+              leading: switch (value.team == team) {
+                true => const Icon(Icons.radio_button_checked),
+                false => const Icon(Icons.radio_button_off),
+              },
+            ),
+          ),
+      ],
+      icon: const SizedBox(),
     );
   }
 }

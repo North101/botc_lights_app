@@ -2,7 +2,7 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-export '/providers/player_state_notifier.dart';
+export 'providers/game_state_notifier.dart';
 export '/providers/device_list_notifier.dart';
 
 final bluetoothProvider = Provider((ref) {

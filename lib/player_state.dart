@@ -1,37 +1,51 @@
 import 'package:bits/bits.dart';
 
-enum AliveState {
-  hidden,
-  alive,
-  deadVote,
-  deadNoVote,
+enum LivingState {
+  hidden('Hidden'),
+  alive('Alive'),
+  dead('Dead');
+
+  const LivingState(this.title);
+
+  final String title;
 }
 
 enum TypeState {
-  player,
-  traveller,
+  player('Player'),
+  traveller('Traveller');
+
+  const TypeState(this.title);
+
+  final String title;
+}
+
+enum TeamState {
+  hidden('Hidden'),
+  good('Good'),
+  evil('Evil');
+
+  const TeamState(this.title);
+
+  final String title;
 }
 
 class Player {
-  const Player(this.alive, this.type);
+  const Player(this.living, this.type, this.team);
 
   factory Player.fromBits(BitBufferReader reader) {
-    final alive = reader.readInt(signed: false, bits: AliveState.values.last.index.bitLength);
+    final living = reader.readInt(signed: false, bits: LivingState.values.last.index.bitLength);
     final type = reader.readInt(signed: false, bits: TypeState.values.last.index.bitLength);
     return Player(
-      AliveState.values[alive],
+      LivingState.values[living],
       TypeState.values[type],
+      TeamState.hidden,
     );
   }
 
-  final AliveState alive;
+  final LivingState living;
   final TypeState type;
+  final TeamState team;
 
-  bool get isAlive => alive == AliveState.alive;
+  bool get isAlive => living == LivingState.alive;
   bool get isTraveller => type == TypeState.traveller;
-
-  void writeBits(BitBufferWriter writer) {
-    writer.writeInt(alive.index, signed: false, bits: AliveState.values.last.index.bitLength);
-    writer.writeInt(type.index, signed: false, bits: TypeState.values.last.index.bitLength);
-  }
 }

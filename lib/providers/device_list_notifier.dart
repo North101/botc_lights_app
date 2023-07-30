@@ -7,17 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/constants.dart';
 
 class DeviceListStateNotifier extends StateNotifier<List<DiscoveredDevice>> {
-  static final bluetoothManager = FlutterReactiveBle();
+  DeviceListStateNotifier._(this.bluetooth) : super([]);
 
-  DeviceListStateNotifier._() : super([]);
-
-  StreamSubscription<DiscoveredDevice>? scanner;
-
-  factory DeviceListStateNotifier() {
-    final notifier = DeviceListStateNotifier._();
+  factory DeviceListStateNotifier(FlutterReactiveBle bluetooth) {
+    final notifier = DeviceListStateNotifier._(bluetooth);
     notifier.scan();
     return notifier;
   }
+
+  final FlutterReactiveBle bluetooth;
+
+  StreamSubscription<DiscoveredDevice>? scanner;
 
   @override
   void dispose() {
@@ -26,10 +26,8 @@ class DeviceListStateNotifier extends StateNotifier<List<DiscoveredDevice>> {
   }
 
   void scan() {
-    scanner = bluetoothManager.scanForDevices(
-      withServices: [
-        uartServiceId,
-      ],
+    scanner = bluetooth.scanForDevices(
+      withServices: [service],
       scanMode: ScanMode.lowLatency,
       requireLocationServicesEnabled: false,
     ).listen((device) {
@@ -51,4 +49,3 @@ class DeviceListStateNotifier extends StateNotifier<List<DiscoveredDevice>> {
     scanner = null;
   }
 }
-

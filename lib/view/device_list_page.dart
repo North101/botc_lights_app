@@ -8,7 +8,8 @@ import 'setup_page.dart';
 
 final deviceListProvider =
     StateNotifierProvider.autoDispose<DeviceListStateNotifier, Iterable<DiscoveredDevice>>((ref) {
-  return DeviceListStateNotifier();
+  final bluetooth = ref.watch(bluetoothProvider);
+  return DeviceListStateNotifier(bluetooth);
 });
 
 class DeviceListPage extends ConsumerWidget {
