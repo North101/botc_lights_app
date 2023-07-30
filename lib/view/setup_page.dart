@@ -70,7 +70,7 @@ class SetupPage extends ConsumerWidget {
                     const Center(child: Text('Bluetooth is off')),
                     ElevatedButton(
                       onPressed: () async {
-                        await AppSettings.openBluetoothSettings();
+                        await AppSettings.openAppSettings(type: AppSettingsType.bluetooth);
                         ref.invalidate(setupProvider);
                       },
                       child: const Text('Open Bluetooth Settings'),
@@ -85,7 +85,7 @@ class SetupPage extends ConsumerWidget {
                     const Center(child: Text('Location services are disabled')),
                     ElevatedButton(
                       onPressed: () async {
-                        await AppSettings.openLocationSettings();
+                        await AppSettings.openAppSettings(type: AppSettingsType.location);
                         ref.invalidate(setupProvider);
                       },
                       child: const Text('Open Location Settings'),
