@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '/providers.dart';
@@ -7,7 +6,7 @@ import 'device_page.dart';
 import 'setup_page.dart';
 
 final deviceListProvider =
-    StateNotifierProvider.autoDispose<DeviceListStateNotifier, Iterable<DiscoveredDevice>>((ref) {
+    StateNotifierProvider.autoDispose<DeviceListStateNotifier, Iterable<Device>>((ref) {
   final bluetooth = ref.watch(bluetoothProvider);
   return DeviceListStateNotifier(bluetooth);
 });
@@ -53,7 +52,7 @@ class DeviceListView extends ConsumerWidget {
       separatorBuilder: (context, index) => const Divider(),
       itemCount: deviceList.length,
       itemBuilder: (context, index) {
-        final device = deviceList.elementAt(index);
+        final device = deviceList.elementAt(index).device;
         return Card(
           child: ListTile(
             title: Center(child: Text(device.name.isEmpty ? device.id : device.name)),
