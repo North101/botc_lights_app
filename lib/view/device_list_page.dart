@@ -17,12 +17,12 @@ class DeviceListPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const SetupPage(child: DeviceListView());
+    return const SetupPage(child: DeviceListScaffold());
   }
 }
 
-class DeviceListView extends ConsumerWidget {
-  const DeviceListView({super.key});
+class DeviceListScaffold extends ConsumerWidget {
+  const DeviceListScaffold({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,15 +35,15 @@ class DeviceListView extends ConsumerWidget {
         onRefresh: () async => ref.invalidate(deviceListProvider),
         child: const Column(children: [
           LinearProgressIndicator(),
-          Expanded(child: DeviceListViewWidget()),
+          Expanded(child: DeviceListView()),
         ]),
       ),
     );
   }
 }
 
-class DeviceListViewWidget extends ConsumerWidget {
-  const DeviceListViewWidget({super.key});
+class DeviceListView extends ConsumerWidget {
+  const DeviceListView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

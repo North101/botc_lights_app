@@ -72,7 +72,7 @@ final travellerCountProvider = Provider.autoDispose((ref) {
   gameStateProvider,
 ]);
 
-final finalAngleProvider = StateProvider((ref) => 0.0);
+final finalAngleProvider = StateProvider((ref) => -pi / 2);
 final upsetAngleProvider = StateProvider((ref) => 0.0);
 final flipProvider = StateProvider((ref) => false);
 
@@ -210,75 +210,125 @@ class DisconnectedWidget extends ConsumerWidget {
   }
 }
 
-class TownsquareContainer extends ConsumerWidget {
+class TownsquareContainer extends StatelessWidget {
   const TownsquareContainer({super.key});
 
-  onPanStart(WidgetRef ref, double size, DragStartDetails details) {
-    final touchPositionFromCenter = details.localPosition - Offset(size, size);
+  @override
+  Widget build(BuildContext context) {
+    return const Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        TownsquareFlipAnimationBuilder(),
+        TownsquareInfoWidget(),
+      ],
+    );
+  }
+}
+
+class TownsquareFlipAnimationBuilder extends ConsumerWidget {
+  const TownsquareFlipAnimationBuilder({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flip = ref.watch(flipProvider);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      transitionBuilder: (widget, animation) {
+        final rotateAnimation = Tween(begin: pi, end: 0.0).animate(animation);
+        return AnimatedBuilder(
+          animation: rotateAnimation,
+          child: widget,
+          builder: (context, widget) {
+            final isUnder = widget?.key != const ValueKey(true);
+            final tilt = ((animation.value - 0.5).abs() - 0.5) * 0.003;
+            final value = isUnder ? min(rotateAnimation.value, pi / 2) : rotateAnimation.value;
+            return Transform(
+              transform: Matrix4.rotationY(value)..setEntry(3, 0, tilt * (isUnder ? -1.0 : 1.0)),
+              alignment: Alignment.center,
+              child: widget,
+            );
+          },
+        );
+      },
+      layoutBuilder: (widget, list) => Stack(children: [
+        if (widget != null) widget,
+        ...list,
+      ]),
+      switchInCurve: Curves.easeInBack,
+      switchOutCurve: Curves.easeInBack.flipped,
+      child: Transform.flip(
+        key: ValueKey(flip),
+        flipX: flip,
+        child: ProviderScope(
+          overrides: [
+            flipProvider.overrideWith((ref) => flip),
+          ],
+          child: const TownsquareGestureDetector(),
+        ),
+      ),
+    );
+  }
+}
+
+class TownsquareGestureDetector extends ConsumerWidget {
+  const TownsquareGestureDetector({super.key});
+
+  onPanStart(WidgetRef ref, Offset offset, DragStartDetails details) {
+    final touchPositionFromCenter = details.localPosition - offset;
     final finalAngle = ref.read(finalAngleProvider);
     ref.read(upsetAngleProvider.notifier).state = finalAngle - touchPositionFromCenter.direction;
   }
 
-  onPanUpdate(WidgetRef ref, double size, DragUpdateDetails details) {
-    final touchPositionFromCenter = details.localPosition - Offset(size, size);
+  onPanUpdate(WidgetRef ref, Offset offset, DragUpdateDetails details) {
+    final touchPositionFromCenter = details.localPosition - offset;
     final upsetAngle = ref.read(upsetAngleProvider);
     ref.read(finalAngleProvider.notifier).state = touchPositionFromCenter.direction + upsetAngle;
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final flip = ref.watch(flipProvider);
-    return Stack(
-      alignment: AlignmentDirectional.center,
-      children: [
-        Transform.flip(
-          flipX: flip,
-          child: LayoutBuilder(builder: (context, constraints) {
-            final size = min(constraints.maxWidth, constraints.maxHeight);
-            return SizedBox(
-              width: size,
-              height: size,
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onPanStart: (details) => onPanStart(ref, size / 2, details),
-                onPanUpdate: (details) => onPanUpdate(ref, size / 2, details),
-                child: const RotatedTownsquare(),
-              ),
-            );
-          }),
+    return LayoutBuilder(builder: (context, constraints) {
+      final size = min(constraints.maxWidth, constraints.maxHeight);
+      final offset = Offset(size / 2, size / 2);
+      return SizedBox(
+        width: size,
+        height: size,
+        child: GestureDetector(
+          onPanStart: (details) => onPanStart(ref, offset, details),
+          onPanUpdate: (details) => onPanUpdate(ref, offset, details),
+          child: const TownsquareRotated(),
         ),
-        const TownsquareInfoWidget(),
-      ],
-    );
+      );
+    });
   }
 }
 
-class RotatedTownsquare extends ConsumerWidget {
-  const RotatedTownsquare({super.key});
+class TownsquareRotated extends ConsumerWidget {
+  const TownsquareRotated({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final angle = ref.watch(finalAngleProvider);
     return Transform.rotate(
       angle: angle,
-      child: const TownsquareWidget(),
+      child: const Townsquare(),
     );
   }
 }
 
-class TownsquareWidget extends ConsumerWidget {
-  const TownsquareWidget({super.key});
+class Townsquare extends ConsumerWidget {
+  const Townsquare({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gameState = ref.watch(gameStateProvider);
-    final distanceAngle = (360 / gameState.players.length);
+    final distanceAngle = 360 / gameState.players.length;
     return Stack(children: [
       for (final (index, player) in gameState.players.indexed)
         Align(
           alignment: Alignment(
-            cos(((distanceAngle * index)) * pi / 180),
-            sin(((distanceAngle * index)) * pi / 180),
+            cos(distanceAngle * index * (pi / 180)),
+            sin(distanceAngle * index * (pi / 180)),
           ),
           child: PlayerWidget(
             index: index,
@@ -300,10 +350,13 @@ class TownsquareInfoWidget extends ConsumerWidget {
     final playerCount = ref.watch(playerCountProvider);
     final travellerCount = ref.watch(travellerCountProvider);
     return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text('$aliveCount / ${playerCount + travellerCount}'),
-        if (playerCount >= 5 && playerCount <= 20) PlayerInfoWidget(playerCount),
-      ]),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('$aliveCount / ${playerCount + travellerCount}'),
+          if (playerCount >= 5 && playerCount <= 20) PlayerInfoWidget(playerCount),
+        ],
+      ),
     );
   }
 }
@@ -390,7 +443,7 @@ class PlayerWidget extends ConsumerWidget {
             }
         },
         radius: playerSize - 2,
-        child: switch (actionBarState) {
+        child: RotatedPlayerChild(switch (actionBarState) {
           ActionBarState.none => switch (state) {
               GameState.game => GamePlayerMenuWidget(
                   index: index,
@@ -409,7 +462,29 @@ class PlayerWidget extends ConsumerWidget {
               },
               icon: const Icon(Icons.delete, color: Colors.black),
             )
-        },
+        }),
+      ),
+    );
+  }
+}
+
+class RotatedPlayerChild extends ConsumerWidget {
+  const RotatedPlayerChild(
+    this.child, {
+    super.key,
+  });
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final flip = ref.watch(flipProvider);
+    final angle = ref.watch(finalAngleProvider);
+    return Transform.flip(
+      flipX: flip,
+      child: Transform.rotate(
+        angle: flip ? angle : -angle,
+        child: child,
       ),
     );
   }
@@ -489,12 +564,15 @@ class GamePlayerMenuWidget extends ConsumerWidget {
           ),
         ),
       ],
-      icon: switch (nominated) {
+      child: switch (nominated) {
         true => switch (value.living) {
             LivingState.alive => const Icon(Icons.error, color: Colors.black),
             _ => const Icon(Icons.error, color: Colors.white),
           },
-        false => const SizedBox(),
+        false => Text(
+            '${index + 1}',
+            style: const TextStyle(color: Colors.black),
+          ),
       },
     );
   }
