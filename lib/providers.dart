@@ -1,9 +1,12 @@
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 export 'providers/game_state_notifier.dart';
 export '/providers/device_list_notifier.dart';
+
+final sharedPreferencesProvider = Provider<SharedPreferences>((ref) => throw UnimplementedError());
 
 final bluetoothProvider = Provider((ref) {
   return FlutterReactiveBle();

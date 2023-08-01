@@ -1,12 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:bits/bits.dart';
-import 'package:botc_lights_app/util.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '/constants.dart';
 import '/player_state.dart';
+import '/util.dart';
 
 enum GameState {
   game,
@@ -14,64 +15,95 @@ enum GameState {
 }
 
 class GameStateNotifier extends ChangeNotifier {
-  static const maxPlayers = 20;
-  static const minPlayers = 5;
+  static const maxCharacters = 15;
+  static const minCharacters = 5;
+  static const maxTravellers = 5;
+  static const minTravellers = 0;
+  static const maxPlayers = maxCharacters + maxTravellers;
+  static const minPlayers = minCharacters + minTravellers;
+  static const maxBrightness = 100;
+  static const minBrightness = 0;
+  static const defaultBrightness = 20;
 
-  GameStateNotifier(this.bluetooth, this.device);
+  GameStateNotifier(this.sharedPreferences, this.bluetooth, this.device)
+      : _brightness = (sharedPreferences.getInt('brightness') ?? defaultBrightness).clamp(minBrightness, maxBrightness);
 
+  final SharedPreferences sharedPreferences;
   final FlutterReactiveBle bluetooth;
   final DiscoveredDevice device;
 
-  var state = GameState.game;
-  final players = [
+  GameState _state = GameState.game;
+  var players = [
     for (var i = 0; i < 7; i++)
       const Player(
         LivingState.alive,
-        TypeState.player,
+        TypeState.character,
         TeamState.hidden,
       ),
   ];
-  int? nominatedPlayer;
-  double brightness = 0.2;
+  int? _nominatedPlayer;
+  int _brightness = 20;
 
   bool get hasMaxPlayers => players.length >= maxPlayers;
 
-  void setBrightness(double brightness) {
-    this.brightness = brightness;
+  int get brightness => _brightness;
+
+  set brightness(int brightness) {
+    _brightness = brightness.clamp(minBrightness, maxBrightness);
+    sharedPreferences.setInt('brightness', _brightness);
+
     notifyListeners();
     writeBrightnessData();
   }
 
-  void setGameState(GameState state) {
-    this.state = state;
+  GameState get state => _state;
+
+  set state(GameState state) {
+    _state = state;
+
     notifyListeners();
     writeStateData();
   }
 
   void addPlayer() {
-    players.add(const Player(
-      LivingState.alive,
-      TypeState.player,
-      TeamState.hidden,
-    ));
+    players = [
+      ...players,
+      const Player(
+        LivingState.alive,
+        TypeState.character,
+        TeamState.hidden,
+      ),
+    ];
+
     notifyListeners();
     writePlayerCharacteristics();
   }
 
   void removePlayerAt(int index) {
-    players.removeAt(index);
+    players = [
+      for (final (i, player) in players.indexed)
+        if (i != index) player,
+    ];
+
     notifyListeners();
     writePlayerCharacteristics();
   }
 
   void updatePlayer(int index, Player player) {
-    players[index] = player;
+    players = [
+      for (final (i, oldPlayer) in players.indexed)
+        if (i == index) player else oldPlayer,
+    ];
+
     notifyListeners();
     writePlayerCharacteristics();
   }
 
-  void nominatePlayer(int? index) {
-    nominatedPlayer = index;
+  int? get nominatedPlayer => _nominatedPlayer;
+
+  set nominatedPlayer(int? index) {
+    _nominatedPlayer = index;
+
     notifyListeners();
     writePlayerNominatedData();
   }
@@ -96,7 +128,7 @@ class GameStateNotifier extends ChangeNotifier {
 
   Uint8List packStateBytes() {
     final writer = BitBuffer().writer();
-    writer.writeInt(state.index, signed: false, bits: GameState.values.last.index.bitLength);
+    writer.writeInt(_state.index, signed: false, bits: GameState.values.last.index.bitLength);
     return writer.buffer.toUInt8List();
   }
 
@@ -143,7 +175,7 @@ class GameStateNotifier extends ChangeNotifier {
       writer.writeEnum<TypeState>(TypeState.values, player.type);
     }
     for (var i = players.length; i < maxPlayers; i++) {
-      writer.writeEnum<TypeState>(TypeState.values, TypeState.player);
+      writer.writeEnum<TypeState>(TypeState.values, TypeState.character);
     }
     return writer.buffer.toUInt8List();
   }
@@ -195,7 +227,7 @@ class GameStateNotifier extends ChangeNotifier {
 
   Uint8List packBrightnessBytes() {
     final writer = BitBuffer().writer();
-    writer.writeInt((255 * brightness).round(), bits: 255.bitLength, signed: false);
+    writer.writeInt(brightness, bits: maxBrightness.bitLength, signed: false);
     return writer.buffer.toUInt8List();
   }
 }

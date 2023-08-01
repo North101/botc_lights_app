@@ -11,7 +11,7 @@ enum LivingState {
 }
 
 enum TypeState {
-  player('Player'),
+  character('Character'),
   traveller('Traveller');
 
   const TypeState(this.title);

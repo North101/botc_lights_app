@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '/providers.dart';
-import 'device_page.dart';
+import 'device_page/page.dart';
 import 'setup_page.dart';
 
 final deviceListProvider =

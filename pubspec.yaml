@@ -12,9 +12,11 @@ dependencies:
 
   app_settings: any
   bits: any
+  collection: any
   flutter_reactive_ble: any
   flutter_riverpod: any
   permission_handler: any
+  shared_preferences: any
 
 dev_dependencies:
   flutter_launcher_icons: any
