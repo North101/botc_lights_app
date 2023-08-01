@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '/constants.dart';
 import '/player_state.dart';
 import '/providers.dart';
+import 'brightness_dialog.dart';
 import 'default_scaffold.dart';
 import 'setup_page.dart';
 
@@ -28,6 +29,7 @@ final deviceConnectionProvider = StreamProvider.autoDispose((ref) {
         playerTypeCharacteristic,
         playerTeamCharacteristic,
         playerNominatedCharacteristic,
+        brightnessCharacteristic,
       ]
     },
   );
@@ -104,9 +106,7 @@ class ConnectionWidget extends ConsumerWidget {
       next.whenData((value) {
         if (value.connectionState == DeviceConnectionState.connected) {
           final notifier = ref.read(gameStateProvider);
-          notifier.writeStateData();
-          notifier.writePlayerCharacteristics();
-          notifier.writePlayerNominatedData();
+          notifier.writeConnectedData();
         } else if (value.connectionState == DeviceConnectionState.disconnected) {
           ref.invalidate(deviceConnectionProvider);
         }
@@ -154,10 +154,6 @@ class ConnectedWidget extends ConsumerWidget {
               onPressed: () => gameState.setGameState(GameState.reveal),
               icon: const Icon(Icons.visibility),
             ),
-          IconButton(
-            onPressed: () => ref.read(flipProvider.notifier).state = !flip,
-            icon: flip ? const Icon(Icons.rotate_left) : const Icon(Icons.rotate_right),
-          ),
           switch (actionBarState) {
             ActionBarState.none => IconButton(
                 onPressed: () {
@@ -174,6 +170,41 @@ class ConnectedWidget extends ConsumerWidget {
                 icon: const Icon(Icons.close),
               ),
           },
+          PopupMenuButton<Never>(
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                onTap: () => showDialog(
+                  context: context,
+                  builder: (context) => ProviderScope(
+                    parent: ProviderScope.containerOf(ref.context),
+                    child: const BrightnessDialog(),
+                  ),
+                ),
+                child: const ListTile(
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(Icons.brightness_6),
+                  title: Text('Brightness'),
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                onTap: () => ref.read(flipProvider.notifier).state = false,
+                child: ListTile(
+                  visualDensity: VisualDensity.compact,
+                  leading: flip == false ? const Icon(Icons.radio_button_on) : const Icon(Icons.radio_button_off),
+                  title: const Text('Clockwise'),
+                ),
+              ),
+              PopupMenuItem(
+                onTap: () => ref.read(flipProvider.notifier).state = true,
+                child: ListTile(
+                  visualDensity: VisualDensity.compact,
+                  leading: flip == true ? const Icon(Icons.radio_button_on) : const Icon(Icons.radio_button_off),
+                  title: const Text('Anti-Clockwise'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: const Padding(

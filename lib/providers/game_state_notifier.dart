@@ -24,15 +24,23 @@ class GameStateNotifier extends ChangeNotifier {
 
   var state = GameState.game;
   final players = [
-    for (var i = 0; i < 7; i++) const Player(
-      LivingState.alive,
-      TypeState.player,
-      TeamState.hidden,
-    ),
+    for (var i = 0; i < 7; i++)
+      const Player(
+        LivingState.alive,
+        TypeState.player,
+        TeamState.hidden,
+      ),
   ];
   int? nominatedPlayer;
+  double brightness = 0.2;
 
   bool get hasMaxPlayers => players.length >= maxPlayers;
+
+  void setBrightness(double brightness) {
+    this.brightness = brightness;
+    notifyListeners();
+    writeBrightnessData();
+  }
 
   void setGameState(GameState state) {
     this.state = state;
@@ -66,6 +74,15 @@ class GameStateNotifier extends ChangeNotifier {
     nominatedPlayer = index;
     notifyListeners();
     writePlayerNominatedData();
+  }
+
+  Future<void> writeConnectedData() async {
+    await Future.wait([
+      writeBrightnessData(),
+      writeStateData(),
+      writePlayerCharacteristics(),
+      writePlayerNominatedData(),
+    ]);
   }
 
   Future<void> writeStateData() async {
@@ -164,6 +181,21 @@ class GameStateNotifier extends ChangeNotifier {
     final writer = BitBuffer().writer();
     final value = (nominatedPlayer ?? -1) + 1;
     writer.writeInt(value, signed: false, bits: (maxPlayers + 1).bitLength);
+    return writer.buffer.toUInt8List();
+  }
+
+  Future<void> writeBrightnessData() async {
+    final characteristic = QualifiedCharacteristic(
+      serviceId: service,
+      characteristicId: brightnessCharacteristic,
+      deviceId: device.id,
+    );
+    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packBrightnessBytes());
+  }
+
+  Uint8List packBrightnessBytes() {
+    final writer = BitBuffer().writer();
+    writer.writeInt((255 * brightness).round(), bits: 255.bitLength, signed: false);
     return writer.buffer.toUInt8List();
   }
 }

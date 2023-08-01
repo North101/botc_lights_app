@@ -6,3 +6,4 @@ final playerLivingCharacteristic = Uuid.parse('AAD80982-48AC-4763-8848-513873A69
 final playerTypeCharacteristic = Uuid.parse('AAD80983-48AC-4763-8848-513873A69E15');
 final playerTeamCharacteristic = Uuid.parse('AAD80984-48AC-4763-8848-513873A69E15');
 final playerNominatedCharacteristic = Uuid.parse('AAD80985-48AC-4763-8848-513873A69E15');
+final brightnessCharacteristic = Uuid.parse('AAD80986-48AC-4763-8848-513873A69E15');
