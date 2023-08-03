@@ -6,19 +6,6 @@ import '/providers.dart';
 import '/view/popup_menu_tile.dart';
 import 'providers.dart';
 
-const playerSize = 30.0;
-const playerBorder = 2.0;
-
-const colorBorder = Color.fromARGB(255, 255, 255, 255);
-const colorHidden = Color.fromARGB(255, 000, 000, 000);
-
-const colorCharacterAlive = Color.fromARGB(255, 244, 241, 234);
-const colorTravellerAlive = Color.fromARGB(255, 205, 170, 056);
-const colorDead = Color.fromARGB(255, 063, 025, 066);
-
-const colorGood = Color.fromARGB(255, 082, 182, 255);
-const colorEvil = Color.fromARGB(255, 255, 54, 54);
-
 class PlayerInfo {
   const PlayerInfo({
     required this.gameState,
@@ -69,28 +56,30 @@ class PlayerInfo {
 
 final playerProvider = Provider<PlayerInfo>((ref) => throw UnimplementedError());
 
-final backgroundColorProvider = Provider((ref) {
-  var playerInfo = ref.watch(playerProvider);
+final backgroundColorProvider = Provider.autoDispose((ref) {
+  final colors = ref.watch(colorsProvider);
+  final playerInfo = ref.watch(playerProvider);
   return switch (playerInfo.state) {
     GameState.game => switch (playerInfo.player.living) {
-        LivingState.hidden => colorHidden,
-        LivingState.dead => colorDead,
+        LivingState.hidden => colors.hidden,
+        LivingState.dead => colors.dead,
         LivingState.alive => switch (playerInfo.player.type) {
-            TypeState.character => colorCharacterAlive,
-            TypeState.traveller => colorTravellerAlive,
+            TypeState.character => colors.character,
+            TypeState.traveller => colors.traveller,
           },
       },
     GameState.reveal => switch (playerInfo.player.team) {
-        TeamState.hidden => colorHidden,
-        TeamState.good => colorGood,
-        TeamState.evil => colorEvil,
-      }
+        TeamState.hidden => colors.hidden,
+        TeamState.good => colors.good,
+        TeamState.evil => colors.evil,
+      },
   };
 }, dependencies: [
+  colorsProvider,
   playerProvider,
 ]);
 
-final textColorProvider = StateProvider((ref) {
+final textColorProvider = StateProvider.autoDispose((ref) {
   final backgroundColor = ref.watch(backgroundColorProvider);
   return switch (ThemeData.estimateBrightnessForColor(backgroundColor)) {
     Brightness.dark => Colors.white,
@@ -101,6 +90,10 @@ final textColorProvider = StateProvider((ref) {
 ]);
 
 class PlayerWidget extends ConsumerWidget {
+  static const colorBorder = Color.fromARGB(255, 255, 255, 255);
+  static const playerSize = 30.0;
+  static const playerBorder = 2.0;
+
   const PlayerWidget({super.key});
 
   @override

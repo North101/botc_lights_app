@@ -1,13 +1,7 @@
-import '/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'device_page/providers.dart';
-
-final brightnessProvider = Provider((ref) {
-  final gameState = ref.watch(gameStateProvider);
-  return gameState.brightness;
-});
+import '/providers.dart';
 
 class BrightnessDialog extends ConsumerWidget {
   const BrightnessDialog({super.key});

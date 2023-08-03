@@ -3,11 +3,86 @@ import 'dart:typed_data';
 import 'package:bits/bits.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '/providers.dart';
 import '/constants.dart';
 import '/player_state.dart';
 import '/util.dart';
+
+class PlayerColors {
+  static const colorHidden = Color.fromARGB(255, 000, 000, 000);
+  static const colorCharacterAlive = Color.fromARGB(255, 244, 241, 234);
+  static const colorTravellerAlive = Color.fromARGB(255, 205, 170, 056);
+  static const colorDead = Color.fromARGB(255, 063, 025, 066);
+  static const colorGood = Color.fromARGB(255, 082, 182, 255);
+  static const colorEvil = Color.fromARGB(255, 255, 54, 54);
+
+  const PlayerColors({
+    required this.hidden,
+    required this.character,
+    required this.traveller,
+    required this.dead,
+    required this.good,
+    required this.evil,
+  });
+
+  factory PlayerColors.fromSharedPreferences(SharedPreferences sharedPreferences) {
+    return PlayerColors(
+      hidden: Color(sharedPreferences.getInt('hidden') ?? colorHidden.value),
+      character: Color(sharedPreferences.getInt('character') ?? colorCharacterAlive.value),
+      traveller: Color(sharedPreferences.getInt('traveller') ?? colorTravellerAlive.value),
+      dead: Color(sharedPreferences.getInt('dead') ?? colorDead.value),
+      good: Color(sharedPreferences.getInt('good') ?? colorGood.value),
+      evil: Color(sharedPreferences.getInt('evil') ?? colorEvil.value),
+    );
+  }
+
+  final Color hidden;
+  final Color character;
+  final Color traveller;
+  final Color dead;
+  final Color good;
+  final Color evil;
+
+  PlayerColors copyWith({
+    Color? hidden,
+    Color? character,
+    Color? traveller,
+    Color? dead,
+    Color? good,
+    Color? evil,
+  }) =>
+      PlayerColors(
+        hidden: hidden ?? this.hidden,
+        character: character ?? this.character,
+        traveller: traveller ?? this.traveller,
+        dead: dead ?? this.dead,
+        good: good ?? this.good,
+        evil: evil ?? this.evil,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlayerColors &&
+      hidden == other.hidden &&
+      character == other.character &&
+      traveller == other.traveller &&
+      dead == other.dead &&
+      good == other.good &&
+      evil == other.evil;
+
+  @override
+  int get hashCode => Object.hash(
+        hidden,
+        character,
+        traveller,
+        dead,
+        good,
+        evil,
+      );
+}
 
 enum GameState {
   game,
@@ -25,8 +100,13 @@ class GameStateNotifier extends ChangeNotifier {
   static const minBrightness = 0;
   static const defaultBrightness = 20;
 
+  static int clampBrightness(int value) {
+    return value.clamp(minBrightness, maxBrightness);
+  }
+
   GameStateNotifier(this.sharedPreferences, this.bluetooth, this.device)
-      : _brightness = (sharedPreferences.getInt('brightness') ?? defaultBrightness).clamp(minBrightness, maxBrightness);
+      : _brightness = clampBrightness(sharedPreferences.getInt('brightness') ?? defaultBrightness),
+        _colors = PlayerColors.fromSharedPreferences(sharedPreferences);
 
   final SharedPreferences sharedPreferences;
   final FlutterReactiveBle bluetooth;
@@ -42,18 +122,34 @@ class GameStateNotifier extends ChangeNotifier {
       ),
   ];
   int? _nominatedPlayer;
-  int _brightness = 20;
+  int _brightness;
+  PlayerColors _colors;
 
   bool get hasMaxPlayers => players.length >= maxPlayers;
 
   int get brightness => _brightness;
 
   set brightness(int brightness) {
-    _brightness = brightness.clamp(minBrightness, maxBrightness);
+    _brightness = clampBrightness(brightness);
     sharedPreferences.setInt('brightness', _brightness);
 
     notifyListeners();
     writeBrightnessData();
+  }
+
+  PlayerColors get colors => _colors;
+
+  set colors(PlayerColors colors) {
+    _colors = colors;
+    sharedPreferences.setInt('hidden', _colors.hidden.value);
+    sharedPreferences.setInt('character', _colors.character.value);
+    sharedPreferences.setInt('traveller', _colors.traveller.value);
+    sharedPreferences.setInt('dead', _colors.dead.value);
+    sharedPreferences.setInt('good', _colors.good.value);
+    sharedPreferences.setInt('evil', _colors.evil.value);
+
+    notifyListeners();
+    writeColorsData();
   }
 
   GameState get state => _state;
@@ -114,6 +210,7 @@ class GameStateNotifier extends ChangeNotifier {
       writeStateData(),
       writePlayerCharacteristics(),
       writePlayerNominatedData(),
+      writeColorsData(),
     ]);
   }
 
@@ -230,4 +327,94 @@ class GameStateNotifier extends ChangeNotifier {
     writer.writeInt(brightness, bits: maxBrightness.bitLength, signed: false);
     return writer.buffer.toUInt8List();
   }
+
+  Future<void> writeColorsData() async {
+    final characteristic = QualifiedCharacteristic(
+      serviceId: service,
+      characteristicId: colorsCharacteristic,
+      deviceId: device.id,
+    );
+    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packColorsBytes());
+  }
+
+  Uint8List packColorsBytes() {
+    final writer = BitBuffer().writer();
+    writer.writeColor(_colors.hidden);
+    writer.writeColor(_colors.character);
+    writer.writeColor(_colors.traveller);
+    writer.writeColor(_colors.dead);
+    writer.writeColor(_colors.good);
+    writer.writeColor(_colors.evil);
+    return writer.buffer.toUInt8List();
+  }
 }
+
+final deviceProvider = Provider<DiscoveredDevice>((ref) => throw UnimplementedError());
+final gameStateProvider = ChangeNotifierProvider.autoDispose<GameStateNotifier>((ref) {
+  final sharedPreferences = ref.watch(sharedPreferencesProvider);
+  final bluetooth = ref.watch(bluetoothProvider);
+  final device = ref.watch(deviceProvider);
+  return GameStateNotifier(
+    sharedPreferences,
+    bluetooth,
+    device,
+  );
+}, dependencies: [
+  sharedPreferencesProvider,
+  bluetoothProvider,
+  deviceProvider,
+]);
+
+final playerListProvider = Provider.autoDispose((ref) {
+  final gameState = ref.watch(gameStateProvider);
+  return gameState.players;
+}, dependencies: [
+  gameStateProvider,
+]);
+
+final alivePlayerCountProvider = Provider.autoDispose((ref) {
+  final players = ref.watch(playerListProvider);
+  return players.where((e) => e.living == LivingState.alive).length;
+}, dependencies: [
+  playerListProvider,
+]);
+
+final characterCountProvider = Provider.autoDispose((ref) {
+  final players = ref.watch(playerListProvider);
+  return players.where((e) => e.living != LivingState.hidden && e.type == TypeState.character).length;
+}, dependencies: [
+  playerListProvider,
+]);
+
+final travellerCountProvider = Provider.autoDispose((ref) {
+  final players = ref.watch(playerListProvider);
+  return players.where((e) => e.living != LivingState.hidden && e.type == TypeState.traveller).length;
+}, dependencies: [
+  playerListProvider,
+]);
+
+final colorsProvider = Provider.autoDispose((ref) {
+  final gameState = ref.watch(gameStateProvider);
+  return gameState.colors;
+}, dependencies: [
+  gameStateProvider,
+]);
+
+final addPlayerProvider = Provider.autoDispose((ref) {
+  final gameState = ref.watch(gameStateProvider);
+  return !gameState.hasMaxPlayers ? gameState.addPlayer : null;
+}, dependencies: [
+  gameStateProvider,
+]);
+
+final stateProvider = Provider.autoDispose((ref) {
+  final gameState = ref.watch(gameStateProvider);
+  return gameState.state;
+}, dependencies: [
+  gameStateProvider,
+]);
+
+final brightnessProvider = Provider.autoDispose((ref) {
+  final gameState = ref.watch(gameStateProvider);
+  return gameState.brightness;
+});

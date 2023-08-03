@@ -8,8 +8,6 @@ import '/providers.dart';
 import 'player_widget.dart';
 import 'providers.dart';
 
-const playerAngleOffset = -pi / 2;
-
 class DeviceBody extends ConsumerWidget {
   const DeviceBody({super.key});
 
@@ -129,6 +127,8 @@ class TownsquareRotated extends ConsumerWidget {
 }
 
 class Townsquare extends ConsumerWidget {
+  static const playerAngleOffset = -pi / 2;
+
   const Townsquare({super.key});
 
   @override

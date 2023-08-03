@@ -3,13 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '/providers.dart';
 import '/view/brightness_dialog.dart';
+import '/view/color_dialog.dart';
 import '/view/popup_menu_tile.dart';
 import 'providers.dart';
-
-final stateProvider = Provider((ref) {
-  final gameState = ref.watch(gameStateProvider);
-  return gameState.state;
-});
 
 class DeviceAppBar extends StatelessWidget implements PreferredSizeWidget {
   const DeviceAppBar({super.key});
@@ -104,6 +100,17 @@ class MoreButton extends ConsumerWidget {
           ),
           icon: const Icon(Icons.brightness_6),
           child: const Text('Brightness'),
+        ),
+        PopupMenuTile(
+          onTap: () => showDialog(
+            context: context,
+            builder: (context) => ProviderScope(
+              parent: ProviderScope.containerOf(ref.context),
+              child: const ColorsDialog(),
+            ),
+          ),
+          icon: const Icon(Icons.palette),
+          child: const Text('Colors'),
         ),
         const PopupMenuDivider(),
         RadioPopupMenuTile<bool>(

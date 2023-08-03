@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '/providers.dart';
 import '/view/default_scaffold.dart';
 import '/view/setup_page.dart';
 import 'appbar.dart';
