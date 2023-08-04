@@ -4,75 +4,88 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '/providers.dart';
 
-class ColorsDialog extends ConsumerWidget {
+enum PlayerColors {
+  character('Character'),
+  traveller('Traveller'),
+  dead('Dead'),
+  good('Good'),
+  evil('Evil');
+
+  const PlayerColors(this.title);
+
+  final String title;
+}
+
+final selectedColorProvider = StateProvider.autoDispose((ref) => PlayerColors.character);
+
+class ColorsDialog extends StatelessWidget {
+  const ColorsDialog({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Colors'),
+      scrollable: true,
+      content: const ColorsDialogContent(),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Done'),
+        ),
+      ],
+    );
+  }
+}
+
+class ColorsDialogContent extends ConsumerWidget {
   static const pickersEnabled = {
     ColorPickerType.primary: false,
     ColorPickerType.accent: false,
     ColorPickerType.wheel: true,
   };
 
-  const ColorsDialog({super.key});
+  const ColorsDialogContent({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(colorsProvider);
-    return AlertDialog(
-      title: const Text('Colors'),
-      scrollable: true,
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ColorPicker(
-            title: const Text('Character'),
-            color: colors.character,
-            pickersEnabled: pickersEnabled,
-            enableShadesSelection: false,
-            onColorChanged: (value) => ref.read(gameStateProvider).colors = colors.copyWith(
-              character: value,
-            ),
-          ),
-          ColorPicker(
-            title: const Text('Traveller'),
-            color: colors.traveller,
-            pickersEnabled: pickersEnabled,
-            enableShadesSelection: false,
-            onColorChanged: (value) => ref.read(gameStateProvider).colors = colors.copyWith(
-              traveller: value,
-            ),
-          ),
-          ColorPicker(
-            title: const Text('Dead'),
-            color: colors.dead,
-            pickersEnabled: pickersEnabled,
-            enableShadesSelection: false,
-            onColorChanged: (value) => ref.read(gameStateProvider).colors = colors.copyWith(
-              dead: value,
-            ),
-          ),
-          ColorPicker(
-            title: const Text('Good'),
-            color: colors.good,
-            pickersEnabled: pickersEnabled,
-            enableShadesSelection: false,
-            onColorChanged: (value) => ref.read(gameStateProvider).colors = colors.copyWith(
-              good: value,
-            ),
-          ),
-          ColorPicker(
-            title: const Text('Evil'),
-            color: colors.evil,
-            pickersEnabled: pickersEnabled,
-            enableShadesSelection: false,
-            onColorChanged: (value) => ref.read(gameStateProvider).colors = colors.copyWith(
-              evil: value,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Done'),
+    final selectedColor = ref.watch(selectedColorProvider);
+    final color = switch (selectedColor) {
+      PlayerColors.character => colors.character,
+      PlayerColors.traveller => colors.traveller,
+      PlayerColors.dead => colors.dead,
+      PlayerColors.good => colors.good,
+      PlayerColors.evil => colors.evil,
+    };
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DropdownButton(
+          isExpanded: true,
+          value: selectedColor,
+          items: [
+            for (final playerColor in PlayerColors.values)
+              DropdownMenuItem(
+                value: playerColor,
+                child: Text(playerColor.title),
+              ),
+          ],
+          onChanged: (value) => ref.read(selectedColorProvider.notifier).state = value!,
+        ),
+        ColorPicker(
+          color: color,
+          pickersEnabled: pickersEnabled,
+          enableShadesSelection: false,
+          onColorChanged: (value) {
+            final gameState = ref.read(gameStateProvider);
+            gameState.colors = switch (selectedColor) {
+              PlayerColors.character => colors.copyWith(character: value),
+              PlayerColors.traveller => colors.copyWith(traveller: value),
+              PlayerColors.dead => colors.copyWith(dead: value),
+              PlayerColors.good => colors.copyWith(good: value),
+              PlayerColors.evil => colors.copyWith(evil: value),
+            };
+          },
         ),
       ],
     );
