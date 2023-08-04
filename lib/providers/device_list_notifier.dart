@@ -9,7 +9,7 @@ import '/constants.dart';
 typedef Device = ({DiscoveredDevice device, DateTime expires});
 
 extension on Device {
-  bool isExpired(DateTime now) => expires.isAfter(now);
+  bool isExpired(DateTime now) => expires.isBefore(now);
 }
 
 class DeviceListStateNotifier extends StateNotifier<List<Device>> {
@@ -49,7 +49,7 @@ class DeviceListStateNotifier extends StateNotifier<List<Device>> {
       final newValue = (device: device, expires: expires);
       state = [
         for (final (i, oldValue) in state.indexed)
-          if (i == index) newValue else if (oldValue.isExpired(now)) oldValue,
+          if (i == index) newValue else if (!oldValue.isExpired(now)) oldValue,
         if (index < 0) newValue
       ];
     }, onError: (error, stackTrace) {
@@ -59,7 +59,7 @@ class DeviceListStateNotifier extends StateNotifier<List<Device>> {
       final now = DateTime.now();
       state = [
         for (final value in state)
-          if (value.isExpired(now)) value,
+          if (!value.isExpired(now)) value,
       ];
     });
   }
