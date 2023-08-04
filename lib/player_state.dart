@@ -1,5 +1,3 @@
-import 'package:bits/bits.dart';
-
 enum LivingState {
   hidden('Hidden'),
   alive('Alive'),
@@ -31,16 +29,6 @@ enum TeamState {
 
 class Player {
   const Player(this.living, this.type, this.team);
-
-  factory Player.fromBits(BitBufferReader reader) {
-    final living = reader.readInt(signed: false, bits: LivingState.values.last.index.bitLength);
-    final type = reader.readInt(signed: false, bits: TypeState.values.last.index.bitLength);
-    return Player(
-      LivingState.values[living],
-      TypeState.values[type],
-      TeamState.hidden,
-    );
-  }
 
   final LivingState living;
   final TypeState type;
