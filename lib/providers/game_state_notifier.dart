@@ -220,7 +220,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: stateCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packStateBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packStateBytes());
   }
 
   Uint8List packStateBytes() {
@@ -243,7 +243,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: playerLivingCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packPlayerAliveBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packPlayerAliveBytes());
   }
 
   Uint8List packPlayerAliveBytes() {
@@ -263,7 +263,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: playerTypeCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packPlayerTypeBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packPlayerTypeBytes());
   }
 
   Uint8List packPlayerTypeBytes() {
@@ -283,7 +283,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: playerTeamCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packPlayerTeamBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packPlayerTeamBytes());
   }
 
   Uint8List packPlayerTeamBytes() {
@@ -303,7 +303,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: playerNominatedCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packGameNominatedBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packGameNominatedBytes());
   }
 
   Uint8List packGameNominatedBytes() {
@@ -319,7 +319,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: brightnessCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packBrightnessBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packBrightnessBytes());
   }
 
   Uint8List packBrightnessBytes() {
@@ -334,7 +334,7 @@ class GameStateNotifier extends ChangeNotifier {
       characteristicId: colorsCharacteristic,
       deviceId: device.id,
     );
-    bluetooth.writeCharacteristicWithoutResponse(characteristic, value: packColorsBytes());
+    bluetooth.writeCharacteristicWithResponse(characteristic, value: packColorsBytes());
   }
 
   Uint8List packColorsBytes() {
@@ -417,4 +417,6 @@ final stateProvider = Provider.autoDispose((ref) {
 final brightnessProvider = Provider.autoDispose((ref) {
   final gameState = ref.watch(gameStateProvider);
   return gameState.brightness;
-});
+}, dependencies: [
+  gameStateProvider,
+]);
