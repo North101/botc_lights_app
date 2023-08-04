@@ -68,7 +68,10 @@ class ConnectedWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return const Scaffold(
-      appBar: DeviceAppBar(),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: DeviceAppBar(),
+      ),
       body: DeviceBody(),
       floatingActionButton: DeviceFloatingActionButton(),
     );

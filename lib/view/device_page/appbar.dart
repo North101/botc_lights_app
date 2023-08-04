@@ -7,26 +7,13 @@ import '/view/color_dialog.dart';
 import '/view/popup_menu_tile.dart';
 import 'providers.dart';
 
-class DeviceAppBar extends StatelessWidget implements PreferredSizeWidget {
+class DeviceAppBar extends ConsumerWidget {
   const DeviceAppBar({super.key});
-
-  @override
-  Widget build(BuildContext context) => _DeviceAppBar(preferredSize);
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-}
-
-class _DeviceAppBar extends ConsumerWidget {
-  const _DeviceAppBar(this.toolbarHeight);
-
-  final Size toolbarHeight;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final device = ref.watch(deviceProvider);
     return AppBar(
-      toolbarHeight: toolbarHeight.height,
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       title: Text(device.name),
       actions: const [
