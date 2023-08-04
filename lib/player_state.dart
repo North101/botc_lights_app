@@ -46,6 +46,18 @@ class Player {
   final TypeState type;
   final TeamState team;
 
+  bool get isHidden => living == LivingState.hidden;
   bool get isAlive => living == LivingState.alive;
   bool get isTraveller => type == TypeState.traveller;
+
+  Player copyWith({
+    LivingState? living,
+    TypeState? type,
+    TeamState? team,
+  }) =>
+      Player(
+        living ?? this.living,
+        type ?? this.type,
+        team ?? this.team,
+      );
 }

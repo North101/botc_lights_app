@@ -77,14 +77,14 @@ class ColorsDialogContent extends ConsumerWidget {
           pickersEnabled: pickersEnabled,
           enableShadesSelection: false,
           onColorChanged: (value) {
-            final gameState = ref.read(gameStateProvider);
-            gameState.colors = switch (selectedColor) {
+            final colorsNotifier = ref.read(colorsProvider.notifier);
+            colorsNotifier.update(switch (selectedColor) {
               PlayerColors.character => colors.copyWith(character: value),
               PlayerColors.traveller => colors.copyWith(traveller: value),
               PlayerColors.dead => colors.copyWith(dead: value),
               PlayerColors.good => colors.copyWith(good: value),
               PlayerColors.evil => colors.copyWith(evil: value),
-            };
+            });
           },
         ),
       ],

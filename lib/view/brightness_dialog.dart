@@ -16,11 +16,11 @@ class BrightnessDialog extends ConsumerWidget {
         children: [
           Slider(
             value: brightness.toDouble(),
-            min: GameStateNotifier.minBrightness.toDouble(),
-            max: GameStateNotifier.maxBrightness.toDouble(),
+            min: BrightnessNotifier.minBrightness.toDouble(),
+            max: BrightnessNotifier.maxBrightness.toDouble(),
             divisions: 100,
             label: '$brightness%',
-            onChanged: (value) => ref.read(gameStateProvider).brightness = value.round(),
+            onChanged: (value) => ref.read(brightnessProvider.notifier).update(value.round()),
           ),
         ],
       ),

@@ -6,80 +6,53 @@ import '/providers.dart';
 import '/view/popup_menu_tile.dart';
 import 'providers.dart';
 
-class PlayerInfo {
-  const PlayerInfo({
-    required this.gameState,
-    required this.state,
-    required this.index,
-    required this.player,
-    required this.isNominated,
-  });
+final playerIndexProvider = Provider.autoDispose<int>((ref) => throw UnimplementedError());
 
-  final GameStateNotifier gameState;
-  final GameState state;
-  final int index;
-  final Player player;
-  final bool isNominated;
+final playerProvider = Provider.autoDispose((ref) {
+  final playerList = ref.watch(playerListProvider);
+  final playerIndex = ref.watch(playerIndexProvider);
+  return playerList[playerIndex];
+}, dependencies: [
+  playerListProvider,
+  playerIndexProvider,
+]);
 
-  bool get enabled => player.living != LivingState.hidden;
-
-  void update(Player player) => gameState.updatePlayer(index, player);
-
-  void setLiving(LivingState living) => update(Player(living, player.type, player.team));
-
-  void setType(TypeState type) => update(Player(player.living, type, player.team));
-
-  void setTeam(TeamState team) => update(Player(player.living, player.type, team));
-
-  void setNominated() => gameState.nominatedPlayer = isNominated ? null : index;
-
-  void remove() => gameState.removePlayerAt(index);
-
-  @override
-  bool operator ==(Object other) =>
-      other is PlayerInfo &&
-      gameState == other.gameState &&
-      state == other.state &&
-      index == other.index &&
-      player == other.player &&
-      isNominated == other.isNominated;
-
-  @override
-  int get hashCode => Object.hash(
-        gameState,
-        state,
-        index,
-        player,
-        isNominated,
-      );
-}
-
-final playerProvider = Provider<PlayerInfo>((ref) => throw UnimplementedError());
+final isNominatedProvider = Provider.autoDispose((ref) {
+  final playerIndex = ref.watch(playerIndexProvider);
+  final nominatedPlayer = ref.watch(nominatedPlayerProvider);
+  return playerIndex == nominatedPlayer;
+}, dependencies: [
+  playerIndexProvider,
+  nominatedPlayerProvider,
+]);
 
 final backgroundColorProvider = Provider.autoDispose((ref) {
+  final state = ref.watch(stateProvider);
   final colors = ref.watch(colorsProvider);
-  final playerInfo = ref.watch(playerProvider);
-  return switch (playerInfo.state) {
-    GameState.game => switch (playerInfo.player.living) {
+  final player = ref.watch(playerProvider);
+  return switch (state) {
+    GameState.game => switch (player.living) {
         LivingState.hidden => colors.hidden,
         LivingState.dead => colors.dead,
-        LivingState.alive => switch (playerInfo.player.type) {
+        LivingState.alive => switch (player.type) {
             TypeState.character => colors.character,
             TypeState.traveller => colors.traveller,
           },
       },
-    GameState.reveal => switch (playerInfo.player.team) {
+    GameState.reveal => switch (player.team) {
         TeamState.hidden => colors.hidden,
         TeamState.good => colors.good,
         TeamState.evil => colors.evil,
       },
   };
 }, dependencies: [
+  stateProvider,
   colorsProvider,
   playerProvider,
+  isNominatedProvider,
 ]);
 
-final textColorProvider = StateProvider.autoDispose((ref) {
+final brightnessColorProvider = StateProvider.autoDispose((ref) {
   final backgroundColor = ref.watch(backgroundColorProvider);
   return switch (ThemeData.estimateBrightnessForColor(backgroundColor)) {
     Brightness.dark => Colors.white,
@@ -90,7 +63,6 @@ final textColorProvider = StateProvider.autoDispose((ref) {
 ]);
 
 class PlayerWidget extends ConsumerWidget {
-  static const colorBorder = Color.fromARGB(255, 255, 255, 255);
   static const playerSize = 30.0;
   static const playerBorder = 2.0;
 
@@ -98,9 +70,11 @@ class PlayerWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isNominated = ref.watch(isNominatedProvider);
     final backgroundColor = ref.watch(backgroundColorProvider);
+    final brightnessColor = ref.watch(brightnessColorProvider);
     return CircleAvatar(
-      backgroundColor: colorBorder,
+      backgroundColor: isNominated ? Colors.red : brightnessColor,
       radius: playerSize,
       child: CircleAvatar(
         backgroundColor: backgroundColor,
@@ -139,16 +113,17 @@ class PlayerMenuWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actionBarState = ref.watch(actionBarStateProvider);
-    final playerInfo = ref.watch(playerProvider);
-    final textColor = ref.watch(textColorProvider);
+    final state = ref.watch(stateProvider);
+    final index = ref.watch(playerIndexProvider);
+    final brightnessColor = ref.watch(brightnessColorProvider);
     return switch (actionBarState) {
-      ActionBarState.none => switch (playerInfo.state) {
+      ActionBarState.none => switch (state) {
           GameState.game => const GamePlayerMenuWidget(),
           GameState.reveal => const RevealPlayerMenuWidget(),
         },
       ActionBarState.delete => IconButton(
-          onPressed: () => ref.read(gameStateProvider).removePlayerAt(playerInfo.index),
-          icon: Icon(Icons.delete, color: textColor),
+          onPressed: () => ref.read(playerListProvider.notifier).remove(index),
+          icon: Icon(Icons.delete, color: brightnessColor),
         ),
     };
   }
@@ -159,14 +134,16 @@ class GamePlayerMenuWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerInfo = ref.watch(playerProvider);
-    final textColor = ref.watch(textColorProvider);
+    final index = ref.watch(playerIndexProvider);
+    final player = ref.watch(playerProvider);
+    final isNominated = ref.watch(isNominatedProvider);
+    final brightnessColor = ref.watch(brightnessColorProvider);
     return PopupMenuButton<PopupMenuEntry>(
       itemBuilder: (context) => [
         for (final living in LivingState.values)
           PopupMenuTile(
-            onTap: () => playerInfo.setLiving(living),
-            icon: switch (playerInfo.player.living == living) {
+            onTap: () => ref.read(playerListProvider.notifier).update(index, player.copyWith(living: living)),
+            icon: switch (player.living == living) {
               true => const Icon(Icons.radio_button_checked),
               false => const Icon(Icons.radio_button_off),
             },
@@ -175,9 +152,8 @@ class GamePlayerMenuWidget extends ConsumerWidget {
         const PopupMenuDivider(),
         for (final type in TypeState.values)
           PopupMenuTile(
-            enabled: playerInfo.enabled,
-            onTap: () => playerInfo.setType(type),
-            icon: switch (playerInfo.player.type == type) {
+            onTap: () => ref.read(playerListProvider.notifier).update(index, player.copyWith(type: type)),
+            icon: switch (player.type == type) {
               true => const Icon(Icons.radio_button_checked),
               false => const Icon(Icons.radio_button_off),
             },
@@ -185,25 +161,22 @@ class GamePlayerMenuWidget extends ConsumerWidget {
           ),
         const PopupMenuDivider(),
         PopupMenuTile(
-          enabled: playerInfo.enabled,
-          onTap: () => playerInfo.setNominated(),
-          icon: playerInfo.isNominated ? const Icon(Icons.check) : const Icon(null),
+          enabled: !player.isHidden,
+          onTap: () => ref.read(nominatedPlayerProvider.notifier).update(isNominated ? null : index),
+          icon: isNominated ? const Icon(Icons.check) : const Icon(null),
           child: const Text('Nominated'),
         ),
         const PopupMenuDivider(),
         PopupMenuTile(
-          onTap: () => playerInfo.remove(),
+          onTap: () => ref.read(playerListProvider.notifier).remove(index),
           icon: const Icon(null),
           child: const Text('Remove'),
         ),
       ],
-      icon: switch (playerInfo.isNominated) {
-        true => Icon(Icons.error, color: textColor),
-        false => Text(
-            '${playerInfo.index + 1}',
-            style: TextStyle(color: textColor),
-          ),
-      },
+      icon: Text(
+        '${index + 1}',
+        style: TextStyle(color: brightnessColor),
+      ),
     );
   }
 }
@@ -213,15 +186,16 @@ class RevealPlayerMenuWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final playerInfo = ref.watch(playerProvider);
-    final textColor = ref.watch(textColorProvider);
+    final index = ref.watch(playerIndexProvider);
+    final player = ref.watch(playerProvider);
+    final brightnessColor = ref.watch(brightnessColorProvider);
     return PopupMenuButton<PopupMenuEntry>(
       itemBuilder: (context) => [
         for (final team in TeamState.values)
           PopupMenuTile(
-            enabled: playerInfo.enabled,
-            onTap: () => playerInfo.setTeam(team),
-            icon: switch (playerInfo.player.team == team) {
+            enabled: !player.isHidden,
+            onTap: () => ref.read(playerListProvider.notifier).update(index, player.copyWith(team: team)),
+            icon: switch (player.team == team) {
               true => const Icon(Icons.radio_button_checked),
               false => const Icon(Icons.radio_button_off),
             },
@@ -229,8 +203,8 @@ class RevealPlayerMenuWidget extends ConsumerWidget {
           ),
       ],
       icon: Text(
-        '${playerInfo.index + 1}',
-        style: TextStyle(color: textColor),
+        '${index + 1}',
+        style: TextStyle(color: brightnessColor),
       ),
     );
   }

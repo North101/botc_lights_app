@@ -12,7 +12,6 @@ dependencies:
 
   app_settings: any
   bits: any
-  collection: any
   flex_color_picker: any
   flutter_reactive_ble: any
   flutter_riverpod: any

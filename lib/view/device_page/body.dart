@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -133,29 +132,19 @@ class Townsquare extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final players = ref.watch(gameStateProvider.select((e) {
-      final state = e.state;
-      final nominatedPlayer = e.nominatedPlayer;
-      return e.players.mapIndexed((index, player) => PlayerInfo(
-            gameState: e,
-            state: state,
-            index: index,
-            player: player,
-            isNominated: nominatedPlayer == index,
-          ));
-    }));
-    final distanceAngle = 2 / players.length * pi;
+    final playerLength = ref.watch(playerListProvider.select((e) => e.length));
+    final distanceAngle = 2 / playerLength * pi;
     return Stack(children: [
-      for (final player in players)
+      for (var i = 0; i < playerLength; i++)
         Align(
-          key: ValueKey(player),
+          key: ValueKey(i),
           alignment: Alignment(
-            cos(playerAngleOffset + (distanceAngle * player.index)),
-            sin(playerAngleOffset + (distanceAngle * player.index)),
+            cos(playerAngleOffset + (distanceAngle * i)),
+            sin(playerAngleOffset + (distanceAngle * i)),
           ),
           child: ProviderScope(
             overrides: [
-              playerProvider.overrideWith((ref) => player),
+              playerIndexProvider.overrideWith((ref) => i),
             ],
             child: const PlayerWidget(),
           ),
@@ -177,7 +166,7 @@ class TownsquareInfoWidget extends ConsumerWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text('$aliveCount / ${characterCount + travellerCount}'),
-          if (characterCount >= GameStateNotifier.minCharacters && characterCount <= GameStateNotifier.maxCharacters)
+          if (characterCount >= minCharacters && characterCount <= maxCharacters)
             CharacterInfoWidget(characterCount),
         ],
       ),

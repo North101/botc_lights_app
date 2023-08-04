@@ -37,8 +37,18 @@ class ConnectionWidget extends ConsumerWidget {
     ref.listen(deviceConnectionProvider, (previous, next) {
       next.whenData((value) {
         if (value.connectionState == DeviceConnectionState.connected) {
-          final notifier = ref.read(gameStateProvider);
-          notifier.writeConnectedData();
+          final playerList = ref.read(playerListProvider.notifier);
+          final nominatedPlayer = ref.read(nominatedPlayerProvider.notifier);
+          final colors = ref.read(colorsProvider.notifier);
+          final state = ref.read(stateProvider.notifier);
+          final brightness = ref.read(brightnessProvider.notifier);
+          Future.wait([
+            playerList.writeCharacteristics(),
+            nominatedPlayer.writeCharacteristic(),
+            colors.writeCharacteristic(),
+            state.writeCharacteristic(),
+            brightness.writeCharacteristic(),
+          ]);
         } else if (value.connectionState == DeviceConnectionState.disconnected) {
           ref.invalidate(deviceConnectionProvider);
         }

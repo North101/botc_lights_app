@@ -33,11 +33,11 @@ class GameStateButton extends ConsumerWidget {
     final state = ref.watch(stateProvider);
     return switch (state) {
       GameState.reveal => IconButton(
-          onPressed: () => ref.read(gameStateProvider).state = GameState.game,
+          onPressed: () => ref.read(stateProvider.notifier).update(GameState.game),
           icon: const Icon(Icons.visibility_off),
         ),
       GameState.game => IconButton(
-          onPressed: () => ref.read(gameStateProvider).state = GameState.reveal,
+          onPressed: () => ref.read(stateProvider.notifier).update(GameState.reveal),
           icon: const Icon(Icons.visibility),
         ),
     };
